@@ -8,10 +8,11 @@ local TeleportButton = Instance.new("TextButton")
 
 -- Safe Parent Injection
 local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
-ScreenGui.Parent = success and coreGui or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local targetParent = success and coreGui or (game:GetService("Players").LocalPlayer and game:GetService("Players").LocalPlayer:FindFirstChildWhichIsA("PlayerGui"))
+ScreenGui.Parent = targetParent
 ScreenGui.ResetOnSpawn = false
 
--- Theme Configurations
+-- Theme Configurations (Matches your dark/green interface)
 local BG_DARK = Color3.fromRGB(24, 24, 24)
 local HEADER_DARK = Color3.fromRGB(18, 18, 18)
 local BUTTON_GREEN = Color3.fromRGB(46, 154, 56)
@@ -72,73 +73,81 @@ local listButtons = {}
 
 -- Function to update the bottom green action button state
 local function updateButtonText()
-    if selectedPlayer then
-        TeleportButton.Text = "Teleport to: " .. selectedPlayer.Name
-    else
-        TeleportButton.Text = "Select a player"
-    end
+	if selectedPlayer then
+		TeleportButton.Text = "Teleport to: " .. selectedPlayer.Name
+	else
+		TeleportButton.Text = "Select a player"
+	end
 end
 
 -- Refresh and build the active player list buttons
 local function refreshPlayerList()
-    -- Clear current listings
-    for _, btn in pairs(listButtons) do
-        btn:Destroy()
-    end
-    listButtons = {}
+	for _, btn in pairs(listButtons) do
+		btn:Destroy()
+	end
+	listButtons = {}
 
-    local players = game:GetService("Players"):GetPlayers()
-    local localPlayer = game:GetService("Players").LocalPlayer
+	local players = game:GetService("Players"):GetPlayers()
+	local localPlayer = game:GetService("Players").LocalPlayer
 
-    for _, player in ipairs(players) do
-        if player ~= localPlayer then
-            local pBtn = Instance.new("TextButton")
-            pBtn.Name = player.Name
-            pBtn.Parent = PlayerList
-            pBtn.BackgroundColor3 = (selectedPlayer == player) and LIST_ITEM_SELECTED or LIST_ITEM_DARK
-            pBtn.BorderSizePixel = 0
-            pBtn.Size = UDim2.new(1, 0, 0, 30)
-            pBtn.Font = Enum.Font.SourceSans
-            pBtn.Text = player.Name
-            pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            pBtn.TextSize = 14
-            
-            pBtn.MouseButton1Click:Connect(function()
-                selectedPlayer = player
-                updateButtonText()
-                refreshPlayerList() -- Redraw to update highlighted item selection background
-            end)
-            
-            table.insert(listButtons, pBtn)
-        end
-    end
-    
-    -- Auto-adjust scrolling bounds based on size of child items
-    PlayerList.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+	for _, player in ipairs(players) do
+		if player ~= localPlayer then
+			local pBtn = Instance.new("TextButton")
+			pBtn.Name = player.Name
+			pBtn.Parent = PlayerList
+			pBtn.BackgroundColor3 = (selectedPlayer == player) and LIST_ITEM_SELECTED or LIST_ITEM_DARK
+			pBtn.BorderSizePixel = 0
+			pBtn.Size = UDim2.new(1, 0, 0, 30)
+			pBtn.Font = Enum.Font.SourceSans
+			pBtn.Text = player.Name
+			pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+			pBtn.TextSize = 14
+			
+			pBtn.MouseButton1Click:Connect(function()
+				selectedPlayer = player
+				updateButtonText()
+				refreshPlayerList()
+			end)
+			
+			table.insert(listButtons, pBtn)
+		end
+	end
+	
+	PlayerList.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end
 
--- Hook up engine events to capture server joiners/leavers dynamically
 game:GetService("Players").PlayerAdded:Connect(refreshPlayerList)
 game:GetService("Players").PlayerRemoving:Connect(function(player)
-    if selectedPlayer == player then
-        selectedPlayer = nil
-        updateButtonText()
-    end
-    refreshPlayerList()
+	if selectedPlayer == player then
+		selectedPlayer = nil
+		updateButtonText()
+	end
+	refreshPlayerList()
 end)
 
--- Main execution functionality loop when button click lands
+-- Exact execution using your requested parameters
+local function executeGoto(targetPlayer)
+	local localPlayer = game:GetService("Players").LocalPlayer
+	if targetPlayer and targetPlayer.Character and localPlayer.Character then
+		local myRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+		local myHumanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+		local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+		
+		if myRoot and targetRoot and myHumanoid then
+			-- Enforces Physics mode to handle high-speed velocity spikes
+			myHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+			
+			-- Teleports exactly 2 studs to the left of the player's relative orientation (-X coordinate axis)
+			myRoot.CFrame = targetRoot.CFrame * CFrame.new(-2, 0, 0)
+		end
+	end
+end
+
+-- Bind the UI button click to the execution logic block
 TeleportButton.MouseButton1Click:Connect(function()
-    local localPlayer = game:GetService("Players").LocalPlayer
-    if selectedPlayer and selectedPlayer.Character and localPlayer.Character then
-        local myRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local targetHead = selectedPlayer.Character:FindFirstChild("Head")
-        
-        if myRoot and targetHead then
-            -- Calculates position exactly 2.5 studs above the center of their head part
-            myRoot.CFrame = targetHead.CFrame * CFrame.new(0, 2.5, 0)
-        end
-    end
+	if selectedPlayer then
+		executeGoto(selectedPlayer)
+	end
 end)
 
 -- Initialize visual state layout
