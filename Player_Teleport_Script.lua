@@ -1,115 +1,144 @@
--- Services
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local teleportTarget = nil
-
--- Create GUI
+-- Create ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 250, 0, 300)
-Frame.Position = UDim2.new(0.5, -125, 0.4, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.BorderSizePixel = 2
-Frame.Parent = ScreenGui
-
+local MainPanel = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
+local PlayerList = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+local TeleportButton = Instance.new("TextButton")
+
+-- Safe Parent Injection
+local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+ScreenGui.Parent = success and coreGui or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Theme Configurations
+local BG_DARK = Color3.fromRGB(24, 24, 24)
+local HEADER_DARK = Color3.fromRGB(18, 18, 18)
+local BUTTON_GREEN = Color3.fromRGB(46, 154, 56)
+local LIST_ITEM_DARK = Color3.fromRGB(34, 34, 34)
+local LIST_ITEM_SELECTED = Color3.fromRGB(45, 45, 45)
+
+-- Main Panel Window
+MainPanel.Name = "MainPanel"
+MainPanel.Parent = ScreenGui
+MainPanel.BackgroundColor3 = BG_DARK
+MainPanel.BorderSizePixel = 0
+MainPanel.Position = UDim2.new(0.5, -125, 0.5, -150)
+MainPanel.Size = UDim2.new(0, 250, 0, 300)
+MainPanel.Active = true
+MainPanel.Draggable = true
+
+-- Header Title
+Title.Name = "Title"
+Title.Parent = MainPanel
+Title.BackgroundColor3 = HEADER_DARK
+Title.BorderSizePixel = 0
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Title.Font = Enum.Font.SourceSansBold
 Title.Text = "Player Teleport GUI"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
-Title.Parent = Frame
 
--- Scrolling list
-local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1, -10, 1, -70)
-ScrollingFrame.Position = UDim2.new(0, 5, 0, 35)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 5, 0)
-ScrollingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-ScrollingFrame.Parent = Frame
+-- Scrollable Player List Area
+PlayerList.Name = "PlayerList"
+PlayerList.Parent = MainPanel
+PlayerList.BackgroundTransparency = 1
+PlayerList.BorderSizePixel = 0
+PlayerList.Position = UDim2.new(0, 5, 0, 35)
+PlayerList.Size = UDim2.new(1, -10, 1, -80)
+PlayerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerList.ScrollBarThickness = 8
+PlayerList.ScrollBarImageColor3 = Color3.fromRGB(120, 120, 120)
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollingFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Parent = PlayerList
+UIListLayout.SortOrder = Enum.SortOrder.Name
+UIListLayout.Padding = UDim.new(0, 2)
 
--- TP Button
-local TPButton = Instance.new("TextButton")
-TPButton.Size = UDim2.new(1, -10, 0, 30)
-TPButton.Position = UDim2.new(0, 5, 1, -35)
-TPButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-TPButton.Text = "Teleport"
-TPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TPButton.Font = Enum.Font.GothamBold
-TPButton.TextSize = 14
-TPButton.Parent = Frame
+-- Dynamic Teleport Bottom Button
+TeleportButton.Name = "TeleportButton"
+TeleportButton.Parent = MainPanel
+TeleportButton.BackgroundColor3 = BUTTON_GREEN
+TeleportButton.BorderSizePixel = 0
+TeleportButton.Position = UDim2.new(0, 5, 1, -40)
+TeleportButton.Size = UDim2.new(1, -10, 0, 35)
+TeleportButton.Font = Enum.Font.SourceSansBold
+TeleportButton.Text = "Select a player"
+TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportButton.TextSize = 15
 
--- Update player list function
-local function updatePlayerList()
-    for _, child in pairs(ScrollingFrame:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local PlayerButton = Instance.new("TextButton")
-            PlayerButton.Size = UDim2.new(1, 0, 0, 25)
-            PlayerButton.Text = player.Name
-            PlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            PlayerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            PlayerButton.Font = Enum.Font.Gotham
-            PlayerButton.TextSize = 12
-            PlayerButton.Parent = ScrollingFrame
-            
-            PlayerButton.MouseButton1Click:Connect(function()
-                teleportTarget = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                TPButton.Text = "Teleport to: " .. player.Name
-            end)
-        end
+-- State variables
+local selectedPlayer = nil
+local listButtons = {}
+
+-- Function to update the bottom green action button state
+local function updateButtonText()
+    if selectedPlayer then
+        TeleportButton.Text = "Teleport to: " .. selectedPlayer.Name
+    else
+        TeleportButton.Text = "Select a player"
     end
 end
 
--- Teleport function
-TPButton.MouseButton1Click:Connect(function()
-    if teleportTarget then
-        LocalPlayer.Character:FindFirstChild("HumanoidRootPart").CFrame = teleportTarget.CFrame + Vector3.new(0, 3, 0)
+-- Refresh and build the active player list buttons
+local function refreshPlayerList()
+    -- Clear current listings
+    for _, btn in pairs(listButtons) do
+        btn:Destroy()
+    end
+    listButtons = {}
+
+    local players = game:GetService("Players"):GetPlayers()
+    local localPlayer = game:GetService("Players").LocalPlayer
+
+    for _, player in ipairs(players) do
+        if player ~= localPlayer then
+            local pBtn = Instance.new("TextButton")
+            pBtn.Name = player.Name
+            pBtn.Parent = PlayerList
+            pBtn.BackgroundColor3 = (selectedPlayer == player) and LIST_ITEM_SELECTED or LIST_ITEM_DARK
+            pBtn.BorderSizePixel = 0
+            pBtn.Size = UDim2.new(1, 0, 0, 30)
+            pBtn.Font = Enum.Font.SourceSans
+            pBtn.Text = player.Name
+            pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            pBtn.TextSize = 14
+            
+            pBtn.MouseButton1Click:Connect(function()
+                selectedPlayer = player
+                updateButtonText()
+                refreshPlayerList() -- Redraw to update highlighted item selection background
+            end)
+            
+            table.insert(listButtons, pBtn)
+        end
+    end
+    
+    -- Auto-adjust scrolling bounds based on size of child items
+    PlayerList.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end
+
+-- Hook up engine events to capture server joiners/leavers dynamically
+game:GetService("Players").PlayerAdded:Connect(refreshPlayerList)
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if selectedPlayer == player then
+        selectedPlayer = nil
+        updateButtonText()
+    end
+    refreshPlayerList()
+end)
+
+-- Main execution functionality loop when button click lands
+TeleportButton.MouseButton1Click:Connect(function()
+    local localPlayer = game:GetService("Players").LocalPlayer
+    if selectedPlayer and selectedPlayer.Character and localPlayer.Character then
+        local myRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local targetRoot = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if myRoot and targetRoot then
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)
+        end
     end
 end)
 
--- Update list on player join/leave
-Players.PlayerAdded:Connect(updatePlayerList)
-Players.PlayerRemoving:Connect(updatePlayerList)
-updatePlayerList()
-
--- Dragging the GUI
-local dragging, dragInput, dragStart, startPos
-Title.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-    end
-end)
-
-Title.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-Title.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
+-- Initialize visual state layout
+refreshPlayerList()
