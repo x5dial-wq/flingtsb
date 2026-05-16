@@ -132,10 +132,11 @@ TeleportButton.MouseButton1Click:Connect(function()
     local localPlayer = game:GetService("Players").LocalPlayer
     if selectedPlayer and selectedPlayer.Character and localPlayer.Character then
         local myRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local targetRoot = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local targetHead = selectedPlayer.Character:FindFirstChild("Head")
         
-        if myRoot and targetRoot then
-            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)
+        if myRoot and targetHead then
+            -- Calculates position exactly 2.5 studs above the center of their head part
+            myRoot.CFrame = targetHead.CFrame * CFrame.new(0, 2.5, 0)
         end
     end
 end)
