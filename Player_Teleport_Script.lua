@@ -23,14 +23,11 @@ local BUTTON_GREEN = Color3.fromRGB(46, 154, 56)
 local LIST_ITEM_DARK = Color3.fromRGB(34, 34, 34)
 local LIST_ITEM_SELECTED = Color3.fromRGB(45, 45, 45)
 
--- ==========================================
--- FLOATING TOGGLE BUTTON (Mobile Friendly)
--- ==========================================
+-- Floating Toggle Button (Mobile Friendly)
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
 ToggleButton.BackgroundColor3 = HEADER_DARK
 ToggleButton.BorderSizePixel = 0
--- Positioned safely on the left side of the screen, adjustable by dragging if needed
 ToggleButton.Position = UDim2.new(0, 15, 0.4, 0)
 ToggleButton.Size = UDim2.new(0, 40, 0, 40)
 ToggleButton.Font = Enum.Font.SourceSansBold
@@ -38,7 +35,7 @@ ToggleButton.Text = "TG"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextSize = 16
 ToggleButton.Active = true
-ToggleButton.Draggable = true -- Allows mobile users to move the toggle button anywhere
+ToggleButton.Draggable = true
 
 ToggleCorner.CornerRadius = UDim.new(0, 8)
 ToggleCorner.Parent = ToggleButton
@@ -95,12 +92,10 @@ TeleportButton.TextSize = 15
 local selectedPlayer = nil
 local listButtons = {}
 
--- Hide / Unhide Logic Connected to the Toggle Button
 ToggleButton.MouseButton1Click:Connect(function()
 	MainPanel.Visible = not MainPanel.Visible
 end)
 
--- Function to update the bottom green action button state
 local function updateButtonText()
 	if selectedPlayer then
 		TeleportButton.Text = "Teleport to: " .. selectedPlayer.Name
@@ -109,7 +104,6 @@ local function updateButtonText()
 	end
 end
 
--- Refresh and build the active player list buttons
 local function refreshPlayerList()
 	for _, btn in pairs(listButtons) do
 		btn:Destroy()
@@ -154,7 +148,7 @@ game:GetService("Players").PlayerRemoving:Connect(function(player)
 	refreshPlayerList()
 end)
 
--- Teleport Logic Execution 
+-- Teleport Logic Execution with Balance Stabilizer
 local function executeGoto(targetPlayer)
 	local localPlayer = game:GetService("Players").LocalPlayer
 	if targetPlayer and targetPlayer.Character and localPlayer.Character then
@@ -163,19 +157,25 @@ local function executeGoto(targetPlayer)
 		local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
 		
 		if myRoot and targetRoot and myHumanoid then
+			-- Enforces Physics mode to handle high-speed velocity spikes safely
 			myHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+			
 			-- Teleports exactly 2 studs to the left relative to their current orientation
 			myRoot.CFrame = targetRoot.CFrame * CFrame.new(-2, 0, 0)
+			
+			-- ANTI-FALL STABILIZER: Wait a split second for physics, then force character upright
+			task.wait(0.1)
+			if myHumanoid then
+				myHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+			end
 		end
 	end
 end
 
--- Bind the UI button click to the execution logic block
 TeleportButton.MouseButton1Click:Connect(function()
 	if selectedPlayer then
 		executeGoto(selectedPlayer)
 	end
 end)
 
--- Initialize visual state layout
 refreshPlayerList()
